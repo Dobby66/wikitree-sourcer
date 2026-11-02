@@ -1071,6 +1071,10 @@ async function getWikiTreeMergeEditData(data, personData, citationObject) {
         canIncludeBmdBioLines = false;
       }
     }
+    let allSourceCitationsText = personData.allSeparateSourceCitationsString;
+    if (allSourceCitationsText) {
+      result.sources = allSourceCitationsText;
+    }
   }
 
   if (canIncludeBmdBioLines) {
@@ -1787,6 +1791,10 @@ async function getWikiTreeEditFamilyData(data, personData, citationObject) {
           canIncludeMarriageAndDeathLines = false;
         }
       }
+    }
+    let allSourceCitationsText = personData.allSeparateSourceCitationsString;
+    if (allSourceCitationsText) {
+      result.sources = allSourceCitationsText;
     }
   }
 

@@ -35,8 +35,10 @@ import { openOrShowOptionsPage } from "../common/browser_compat.mjs";
 import { clearCitation } from "./popup_citation.mjs";
 
 import { addShowCitationAssistantMenuItem } from "./popup_menu_blocks.mjs";
+import { addCollectCitationsMenuItem } from "./popup_collect_citations.mjs";
 
 import { getSites } from "../common/site_registry_storage.mjs";
+import { checkIfCollectingCitations, isRecordInCollectedCitations } from "../common/collected_citations.mjs";
 
 /**
  * Temporary workaround for secondary monitors on MacOS where redraws don't happen
@@ -886,6 +888,8 @@ function addMenuItem(menu, innerText, onclick, shortcut) {
   if (shortcut) {
     addShortcut(shortcut, onclick);
   }
+
+  return listItem;
 }
 
 function addMenuItemWithSubtitle(menu, innerText, onclick, subTitleText) {
@@ -980,6 +984,31 @@ function addHelpMenuItem(menu, data, backFunction) {
   });
 }
 
+function addButtonMenuItem(menu, innerText, onclick, shortcut) {
+  // create a list item and add it to the list
+  let listItem = document.createElement("li");
+  setMenuItemClassName(menu, listItem, "menuItem");
+  //listItem.innerText = innerText;
+  //listItem.onclick = onclick;
+
+  if (shortcut) {
+    innerText = innerText + " [" + shortcut + "]";
+  }
+
+  let button = document.createElement("button");
+  button.className = "dialogButton";
+  button.onclick = onclick;
+  button.innerText = innerText;
+  button.setAttribute("aria-keyshortcuts", shortcut);
+  listItem.appendChild(button);
+
+  menu.list.appendChild(listItem);
+
+  if (shortcut) {
+    addShortcut(shortcut, onclick);
+  }
+}
+
 function addBuyMeACoffeeMenuItem(menu) {
   if (isSafari()) {
     return; // no donations on Safari version
@@ -1050,23 +1079,28 @@ function isManualClassificationNeeded(data) {
   return result;
 }
 
-function getBuildCitationMenuTextForType(type) {
+function getBuildCitationMenuTextForType(type, isCollectingCitations = false) {
   let target = options.citation_general_target;
 
-  let menuText = "";
+  let startingWord = "Build";
+  if (isCollectingCitations) {
+    startingWord = "Add";
+  }
+
+  let menuText = startingWord;
   if (target == "wikitree") {
     if (type == "inline") {
-      menuText = "Build Inline Citation";
+      menuText += " Inline Citation";
     } else if (type == "narrative") {
-      menuText = "Build Narrative with Citation";
+      menuText += " Narrative with Citation";
     } else if (type == "source") {
-      menuText = "Build Source Citation";
+      menuText += " Source Citation";
     }
   } else {
     if (type == "inline") {
-      menuText = "Build Plain Text Citation";
+      menuText += " Plain Text Citation";
     } else if (type == "narrative") {
-      menuText = "Build Narrative";
+      menuText += " Narrative";
     }
   }
 
@@ -1169,7 +1203,8 @@ function setupBuildCitationSubmenuForRequestedUserInput(
   regeneralizeFunction,
   userInputFunction,
   partialResultData,
-  focusElementId
+  focusElementId,
+  isCollectingCitations
 ) {
   async function rebuild(existingFocusElementId) {
     // we rebuild the menu but try to keep the focus element the same.
@@ -1323,7 +1358,7 @@ function setupBuildCitationSubmenuForRequestedUserInput(
   }
 
   // final button
-  let buttonText = getBuildCitationMenuTextForType(data.type);
+  let buttonText = getBuildCitationMenuTextForType(data.type, isCollectingCitations);
   let button = document.createElement("button");
   button.className = "dialogButton";
   button.innerText = buttonText;
@@ -1353,7 +1388,8 @@ function setupBuildCitationSubmenu(
   buildFunction,
   backFunction,
   regeneralizeFunction,
-  userInputFunction
+  userInputFunction,
+  isCollectingCitations
 ) {
   clearCitation();
 
@@ -1363,7 +1399,10 @@ function setupBuildCitationSubmenu(
       buildFunction,
       backFunction,
       regeneralizeFunction,
-      userInputFunction
+      userInputFunction,
+      null,
+      null,
+      isCollectingCitations
     );
     return;
   }
@@ -1472,7 +1511,7 @@ function setupBuildCitationSubmenu(
   }
 
   // final button
-  let buttonText = getBuildCitationMenuTextForType(data.type);
+  let buttonText = getBuildCitationMenuTextForType(data.type, isCollectingCitations);
 
   addBreak(menu.list);
   addBreak(menu.list);
@@ -1505,7 +1544,8 @@ function setupOtherBuildCitationItemsSubmenu(
   type,
   backFunction,
   regeneralizeFunction,
-  userInputFunction
+  userInputFunction,
+  isCollectingCitations
 ) {
   let menu = beginMainMenu();
   addBackMenuItem(menu, backFunction);
@@ -1519,7 +1559,9 @@ function setupOtherBuildCitationItemsSubmenu(
       "inline",
       backFunction,
       regeneralizeFunction,
-      userInputFunction
+      userInputFunction,
+      false,
+      isCollectingCitations
     );
   }
   if (type != "narrative") {
@@ -1531,7 +1573,9 @@ function setupOtherBuildCitationItemsSubmenu(
       "narrative",
       backFunction,
       regeneralizeFunction,
-      userInputFunction
+      userInputFunction,
+      false,
+      isCollectingCitations
     );
   }
   if (type != "source") {
@@ -1543,7 +1587,9 @@ function setupOtherBuildCitationItemsSubmenu(
       "source",
       backFunction,
       regeneralizeFunction,
-      userInputFunction
+      userInputFunction,
+      false,
+      isCollectingCitations
     );
   }
 
@@ -1559,7 +1605,8 @@ function addBuildCitationMenuItem(
   backFunction,
   regeneralizeFunction,
   userInputFunction,
-  othersOnSubmenu = false
+  othersOnSubmenu = false,
+  isCollectingCitations = false
 ) {
   let suffix = "";
   if (regeneralizeFunction) {
@@ -1578,8 +1625,8 @@ function addBuildCitationMenuItem(
     }
   }
 
-  let menuText = getBuildCitationMenuTextForType(type);
-  let shortcut = getBuildCitationShortcutForType(type);
+  let menuText = getBuildCitationMenuTextForType(type, isCollectingCitations);
+  let shortcut = getBuildCitationShortcutForType(type, isCollectingCitations);
 
   if (!menuText) {
     return;
@@ -1605,7 +1652,8 @@ function addBuildCitationMenuItem(
       type,
       backFunction,
       regeneralizeFunction,
-      userInputFunction
+      userInputFunction,
+      isCollectingCitations
     );
   };
 
@@ -1616,7 +1664,8 @@ function addBuildCitationMenuItem(
       buildFunction,
       backFunction,
       regeneralizeFunction,
-      userInputFunction
+      userInputFunction,
+      isCollectingCitations
     );
   };
 
@@ -1634,7 +1683,14 @@ function addBuildCitationMenuItem(
   }
 }
 
-function addBuildCitationMenuItems(menu, data, buildFunction, backFunction, regeneralizeFunction, userInputFunction) {
+async function addBuildCitationMenuItems(
+  menu,
+  data,
+  buildFunction,
+  backFunction,
+  regeneralizeFunction,
+  userInputFunction
+) {
   let gd = data.generalizedData;
   if (gd.sourceType && !(gd.sourceType == "record" || gd.sourceType == "image")) {
     addShowCitationAssistantMenuItem(menu);
@@ -1649,25 +1705,43 @@ function addBuildCitationMenuItems(menu, data, buildFunction, backFunction, rege
     othersOnSubmenu = true;
   }
 
-  let typeStrings = ["inline", "narrative", "source"];
-  if (gd.sourceType == "image") {
-    typeStrings = ["inline", "source"];
-  }
-  for (let typeString of typeStrings) {
-    if (menuItemsOption == "all" || menuItemsOption == typeString) {
-      addBuildCitationMenuItem(
-        menu,
-        data,
-        manualClassification,
-        buildFunction,
-        typeString,
-        backFunction,
-        regeneralizeFunction,
-        userInputFunction,
-        othersOnSubmenu
-      );
+  const isCollectingCitations = await checkIfCollectingCitations();
+  let hideAddItems = false;
+  if (isCollectingCitations) {
+    const isInCollection = await isRecordInCollectedCitations(data.extractedData, data.generalizedData);
+    if (isInCollection) {
+      hideAddItems = true;
     }
   }
+
+  if (!hideAddItems) {
+    let typeStrings = ["inline", "narrative", "source"];
+    if (gd.sourceType == "image") {
+      typeStrings = ["inline", "source"];
+    }
+    for (let typeString of typeStrings) {
+      if (menuItemsOption == "all" || menuItemsOption == typeString) {
+        addBuildCitationMenuItem(
+          menu,
+          data,
+          manualClassification,
+          buildFunction,
+          typeString,
+          backFunction,
+          regeneralizeFunction,
+          userInputFunction,
+          othersOnSubmenu,
+          isCollectingCitations
+        );
+      }
+    }
+  } else {
+    // add comment about duplicate
+    let message = "This record is already in the collected citations";
+    addItalicMessageMenuItem(menu, message);
+  }
+
+  await addCollectCitationsMenuItem(menu, data, backFunction);
 
   if (gd.sourceType == "image") {
     // Images typically do not have a lot of info for a citation
@@ -2111,6 +2185,7 @@ export {
   setupSearchCollectionsSubmenu,
   addBackMenuItem,
   addHelpMenuItem,
+  addButtonMenuItem,
   addBuyMeACoffeeMenuItem,
   addOptionsMenuItem,
   addItalicMessageMenuItem,
@@ -2143,5 +2218,6 @@ export {
   clearCachedFetchData,
   displayTextMenu,
   overrideMenuWidth,
+  addMessageMenuItem,
   rtToRefTitle,
 };

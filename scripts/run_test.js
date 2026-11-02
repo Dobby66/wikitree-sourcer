@@ -30,6 +30,7 @@ const siteNames = [
   "ancestry",
   "archion",
   "archive",
+  "archivesnz",
   "arolsenarchives",
   "ausmem",
   "baclac",
@@ -55,9 +56,11 @@ const siteNames = [
   "gedbas",
   "gedenkbuch",
   "geneteka",
+  "genquebec",
   "gensau",
   "gro",
   "hathi",
+  "imdb",
   "irishg",
   "itcadgg",
   "jstor",
@@ -78,7 +81,9 @@ const siteNames = [
   "openarch",
   "panb",
   "ppnz",
+  "prdh",
   "psuk",
+  "ripie",
   "qldbdm",
   "riksark",
   "scotp",
@@ -89,11 +94,16 @@ const siteNames = [
   "trove",
   "ushmm",
   "vicbdm",
+  "wadigarch",
   "wagovau",
   "wiewaswie",
   "wikipedia",
   "wikitree",
-  "yadvashem"
+  "wol",
+  "wtahdstn",
+  "yadvashem",
+  "yorkshireburials",
+  "youtube"
 ];
 
 function testSuiteEnabled(parameters, testSuiteName) {
